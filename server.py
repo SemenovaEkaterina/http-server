@@ -1,18 +1,27 @@
 import socket
 import os
+import sys
 import select
 import configparser
+from pathlib import Path
 
 from handler import HttpHandler
 
 config = configparser.ConfigParser()
-config.read_file(open(r'server.conf'))
+if not Path("/etc/httpd.conf").is_file():
+    config.read_file(open(r'./default.conf'))
+else:
+    config.read_file(open(r'/etc/httpd.conf'))
+
 DOCUMENT_ROOT = config.get('server-config', 'document_root')
 PORT = int(config.get('server-config', 'port'))
 FILE_BLOCK_SIZE = int(config.get('server-config', 'file_block_size'))
 CPU_COUNT = int(config.get('server-config', 'cpu_count'))
 READ_CHUNK_SIZE = int(config.get('server-config', 'read_chunk_size'))
 WRITE_CHUNK_SIZE = int(config.get('server-config', 'write_chunk_size'))
+
+if len(sys.argv) > 1 and sys.argv[1] == 'dev':
+    DOCUMENT_ROOT = './http-test-suite/httptest'
 
 
 class Handler:
@@ -161,6 +170,7 @@ class Server:
 
     def start(self):
         print("Starting server on port {}, document root: {}".format(self.port, self.document_root))
+
         sock = socket.socket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setblocking(0)
