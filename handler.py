@@ -1,4 +1,5 @@
 from enum import Enum
+import fcntl
 
 from request import Request
 from response import Response, ResponseCode
@@ -18,39 +19,51 @@ class ContentTypes(Enum):
     txt = 'text/txt'
 
 
-def handle(data, config):
-    request = Request(data)
+class HttpHandler:
+    def __init__(self):
+        self.response = None
+        self.file = None
 
-    if request.error:
-        response = Response(ResponseCode.NOT_ALLOWED, request.protocol)
+    def parse_request(self, data, document_root):
+        request = Request(data)
 
-    else:
-        try:
+        if request.error:
+            self.response = Response(ResponseCode.NOT_ALLOWED, request.protocol)
+
+        else:
+            self.protocol = request.protocol
             if request.url[-1:] == '/':
                 file_url = request.url[1:] + 'index.html'
             else:
                 file_url = request.url[1:]
 
-            f = open(os.path.join(config['DOCUMENT_ROOT'], file_url), 'rb')
             if len(file_url.split('../')) > 1:
-                response = Response(ResponseCode.FORBIDDEN, request.protocol)
+                self.response = Response(ResponseCode.FORBIDDEN, request.protocol)
+                self.file = None
 
             else:
                 try:
-                    content_type = ContentTypes[file_url.split('.')[-1]].value
+                    self.file = os.open(os.path.join(document_root, file_url), os.O_RDONLY)
+                    flag = fcntl.fcntl(self.file, fcntl.F_GETFL)
+                    fcntl.fcntl(self.file, fcntl.F_SETFL, flag | os.O_NONBLOCK)
+                except (FileNotFoundError, IsADirectoryError):
+                    if (request.url[-1:]) == '/':
+                        return Response(ResponseCode.FORBIDDEN, request.protocol).build()
+                    else:
+                        return Response(ResponseCode.NOT_FOUND, request.protocol).build()
+                except OSError:
+                    print(request.url)
+                    return Response(ResponseCode.NOT_FOUND, request.protocol).build()
+                try:
+                    self.content_type = ContentTypes[file_url.split('.')[-1]].value
                 except KeyError:
-                    content_type = 'text/plain'
+                    self.content_type = 'text/plain'
 
-                content_length = os.path.getsize(os.path.join(config['DOCUMENT_ROOT'], file_url))
+                self.content_length = os.path.getsize(os.path.join(document_root, file_url))
+
+                self.response = Response(ResponseCode.OK, request.protocol, self.content_type, self.content_length)
+
                 if request.method == 'HEAD':
-                    response = Response(ResponseCode.OK, request.protocol, content_type, content_length)
-                else:
-                    response = Response(ResponseCode.OK, request.protocol, content_type, content_length, f.read())
-        except (FileNotFoundError, IsADirectoryError):
-            if (request.url[-1:]) == '/':
-                response = Response(ResponseCode.FORBIDDEN, request.protocol)
-            else:
-                response = Response(ResponseCode.NOT_FOUND, request.protocol)
+                    self.file = None
 
-    print(response.build()[1:50])
-    return response.build()
+        return self.response.build()

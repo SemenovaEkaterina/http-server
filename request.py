@@ -11,12 +11,12 @@ class Request:
         self.headers = self.__parse_headers()
         self.query = self.__parse_query()
 
-        print(self.method, self.url)
+        # print(self.method, self.url)
 
     def __parse_method(self):
         method = self.data.split(' ')[0]
         if method not in ['HEAD', 'GET']:
-            print('ERROR')
+            # print('ERROR')
             self.error = True
         return method
 
@@ -33,8 +33,9 @@ class Request:
                 url += '/'
             return url
         except:
-            print(self.data)
-            print(self.data.split(' '))
+            pass
+            # print(self.data)
+            # print(self.data.split(' '))
 
     def __parse_query(self):
         params = {}
