@@ -3,7 +3,6 @@ import os
 import sys
 import select
 import configparser
-import time
 from pathlib import Path
 
 from handler import HttpHandler
