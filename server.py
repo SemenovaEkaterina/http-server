@@ -3,6 +3,7 @@ import os
 import sys
 import select
 import configparser
+import time
 from pathlib import Path
 
 from handler import HttpHandler
@@ -84,7 +85,6 @@ class ConnectionHandler(Handler):
     def write_data(self):
         try:
             sent = self.connection.send(self.out_data)
-
             if self.file_end and len(self.out_data) == sent:
                 self.ready = True
                 self.ready_to_write = False
@@ -173,7 +173,7 @@ class Server:
         self.cpu_count = cpu_count
 
     def start(self):
-        print("Starting server on port {}, document root: {}".format(self.port, self.document_root))
+        ("Starting server on port {}, document root: {}".format(self.port, self.document_root))
 
         sock = socket.socket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
