@@ -21,7 +21,7 @@ READ_CHUNK_SIZE = int(config.get('server-config', 'read_chunk_size'))
 WRITE_CHUNK_SIZE = int(config.get('server-config', 'write_chunk_size'))
 
 if len(sys.argv) > 1 and sys.argv[1] == 'dev':
-    DOCUMENT_ROOT = './http-test-suite/httptest'
+    DOCUMENT_ROOT = './http-test-suite'
 
 
 class Handler:
@@ -61,12 +61,15 @@ class ConnectionHandler(Handler):
         self.file_end = False
 
     def read_data(self):
-        chunk = self.connection.recv(READ_CHUNK_SIZE)
-        self.data += chunk
-        if len(chunk) < READ_CHUNK_SIZE:
+        try:
+            chunk = self.connection.recv(READ_CHUNK_SIZE)
             self.data += chunk
-            self.ready_to_read = False
-            self.__handle()
+            if len(chunk) < READ_CHUNK_SIZE:
+                self.data += chunk
+                self.ready_to_read = False
+                self.__handle()
+        except:
+            self.ready = True
 
     def __handle(self):
         self.out_data = self.httpHandler.parse_request(self.data, DOCUMENT_ROOT)
@@ -81,6 +84,7 @@ class ConnectionHandler(Handler):
     def write_data(self):
         try:
             sent = self.connection.send(self.out_data)
+
             if self.file_end and len(self.out_data) == sent:
                 self.ready = True
                 self.ready_to_write = False
@@ -108,7 +112,6 @@ class Selector:
         self.handlers_map[fileno] = handler
 
     def start(self):
-
         while True:
             ready_to_read = []
             ready_to_write = []
@@ -118,7 +121,8 @@ class Selector:
                 if self.handlers_map[handler].ready_to_write:
                     ready_to_write.append(handler)
                 if self.handlers_map[handler].has_file:
-                    self.register(self.handlers_map[handler].file, FileHandler(self.handlers_map[handler].file, handler))
+                    self.register(self.handlers_map[handler].file,
+                                  FileHandler(self.handlers_map[handler].file, handler))
                     self.handlers_map[handler].has_file = False
                     ready_to_read.append(self.handlers_map[handler].file)
 
@@ -134,7 +138,7 @@ class Selector:
             try:
                 r, w, e = select.select(ready_to_read, ready_to_write, self.handlers_map)
             except OSError:
-                pass
+                r, w, e = [], [], []
 
             for readable in r:
                 if readable not in self.handlers_map:
@@ -179,7 +183,7 @@ class Server:
 
         selector = Selector(sock)
 
-        for i in range(self.cpu_count):
+        for i in range(self.cpu_count-1):
             pid = os.fork()
             if pid == 0:
                 break
