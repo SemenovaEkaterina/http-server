@@ -145,6 +145,7 @@ class Selector:
                 if type(self.handlers_map[readable]) == ListenHandler:
                     try:
                         conn, addr = self.sock.accept()
+                        conn.setblocking(0)
                         self.register(conn.fileno(), ConnectionHandler(conn))
                     except:
                         pass
@@ -172,7 +173,7 @@ class Server:
         self.cpu_count = cpu_count
 
     def start(self):
-        ("Starting server on port {}, document root: {}".format(self.port, self.document_root))
+        print("Starting server on port {}, document root: {}".format(self.port, self.document_root))
 
         sock = socket.socket()
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
